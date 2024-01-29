@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace DeskBooker.Core.Models
 {
-    public class DeskBookingEntity : DeskBooking
+    public class Desk : DeskBooking
     {
-        public int Id {get;set;}
+        public int Id { get; set; }
     }
 }

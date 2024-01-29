@@ -10,8 +10,10 @@ namespace DeskBooker.Core.Processors
     public class DeskBookingRequestProcessor
     {
         private readonly IDeskBookingRepository _deskBookingRepository;
-        public DeskBookingRequestProcessor(IDeskBookingRepository deskBookingRepository)
+        private readonly IDeskAvailableRepository _deskAvailableRepository;
+        public DeskBookingRequestProcessor(IDeskBookingRepository deskBookingRepository, IDeskAvailableRepository deskAvailableRepository)
         {
+            _deskAvailableRepository = deskAvailableRepository;
             _deskBookingRepository = deskBookingRepository;
         }
 
@@ -22,18 +24,25 @@ namespace DeskBooker.Core.Processors
                 throw new ArgumentNullException("Input parameter cannot be null");
             }
 
-          _deskBookingRepository.SaveBookDesk(MapObject<DeskBookingEntity>(deskBooking));
+            var deskDetails = _deskAvailableRepository.GetAvailableDeskDetails(deskBooking.BookingDate);
 
+          if(deskDetails.FirstOrDefault() is Desk deskData)
+          {
+             var deskBookingEntity = MapObject<DeskBookingEntity>(deskBooking);
+             deskBookingEntity.Id = deskData.Id;
+             _deskBookingRepository.SaveBookDesk(deskBookingEntity);
+          }
+  
             return deskBooking;
         }
 
         private static T MapObject<T>(DeskBookingDTO data) where T : DeskBooking, new()
         {
             return new T {
-                FirstName = "Raja",
-                LastName = "K",
-                EmailId = "raja.k@yahoo.com",
-                BookingDate = DateTime.Now
+                FirstName = data.FirstName,
+                LastName = data.LastName,
+                EmailId = data.EmailId,
+                BookingDate = data.BookingDate
             };
         }
     }

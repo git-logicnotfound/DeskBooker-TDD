@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using DeskBooker.Core.DataInterface;
 using DeskBooker.Core.Models;
@@ -11,26 +13,31 @@ namespace DeskBooker.Core.Tests
     public class DeskBookingRequestProcessorTests
     {
         public DeskBookingRequestProcessor _deskBookingService { get; }
+        public DeskBookingDTO bookingDetails { get; }
+
+        private readonly List<Desk> _deskDetails;
         private readonly Mock<IDeskBookingRepository> _deskBookingRepository;
+        private readonly Mock<IDeskAvailableRepository> _deskAvailableRepository;
 
         public DeskBookingRequestProcessorTests()
         {
+             bookingDetails = new DeskBookingDTO {
+                FirstName = "Raja",
+                LastName = "K",
+                EmailId = "raja.k@yahoo.com",
+                BookingDate = new DateTime(2024,01,30)
+            };
+
+            _deskDetails = new List<Desk>() { new Desk { Id = 7} };
             _deskBookingRepository = new Mock<IDeskBookingRepository>();
-            _deskBookingService = new DeskBookingRequestProcessor(_deskBookingRepository.Object);
+            _deskAvailableRepository = new Mock<IDeskAvailableRepository>();
+             _deskAvailableRepository.Setup(x => x.GetAvailableDeskDetails(It.IsAny<DateTime>())).Returns(_deskDetails);
+            _deskBookingService = new DeskBookingRequestProcessor(_deskBookingRepository.Object,_deskAvailableRepository.Object);
         }
 
         [Fact]
         public void BookingDesk_ValidBookingDetails_ReturnBookedDetails()
-        {
-            // Arrange
-            var bookingDetails = new DeskBookingDTO
-            {
-                FirstName = "Raja",
-                LastName = "K",
-                EmailId = "raja.k@yahoo.com",
-                BookingDate = DateTime.Now
-            };
-
+        {       
             // Act
             var result = _deskBookingService.BookDesk(bookingDetails);
 
@@ -56,26 +63,29 @@ namespace DeskBooker.Core.Tests
         public void BookDesk_PassBookDetails_ReturnsSavedData()
         {
             DeskBookingEntity deskBookingEntity = null;
-            var BookDetails = new DeskBookingDTO {
-                FirstName = "Raja",
-                LastName = "K",
-                EmailId = "raja.k@yahoo.com",
-                BookingDate = DateTime.Now
-            };
-
+            
             _deskBookingRepository.Setup(x => x.SaveBookDesk(It.IsAny<DeskBookingEntity>()))
             .Callback((DeskBookingEntity callBackResult)=> deskBookingEntity = callBackResult );
 
-            _deskBookingService.BookDesk(BookDetails);
+            _deskBookingService.BookDesk(bookingDetails);
             
             _deskBookingRepository.Verify(x => x.SaveBookDesk(It.IsAny<DeskBookingEntity>()),Times.Once);
 
             Assert.NotNull(deskBookingEntity);
-            Assert.Equal(BookDetails.FirstName, deskBookingEntity!.FirstName);
-            Assert.Equal(BookDetails.LastName, deskBookingEntity.LastName);
-            Assert.Equal(BookDetails.EmailId, deskBookingEntity.EmailId);
-            Assert.Equal(BookDetails.BookingDate.Date, deskBookingEntity.BookingDate.Date);
-            
+            Assert.Equal(bookingDetails.FirstName, deskBookingEntity!.FirstName);
+            Assert.Equal(bookingDetails.LastName, deskBookingEntity.LastName);
+            Assert.Equal(bookingDetails.EmailId, deskBookingEntity.EmailId);
+            Assert.Equal(bookingDetails.BookingDate.Date, deskBookingEntity.BookingDate.Date);
+            Assert.Equal(_deskDetails.First().Id,deskBookingEntity.Id);
+        }
+
+       [Fact]
+        public void BookDesk_PassDeskBookingRequest_ShouldNotCallSaveDesk()
+        {      
+            _deskDetails.Clear();
+              _deskBookingService.BookDesk(bookingDetails);
+
+              _deskBookingRepository.Verify(v => v.SaveBookDesk(It.IsAny<DeskBookingEntity>()),Times.Never);
         }
     }
 }
